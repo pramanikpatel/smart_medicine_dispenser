@@ -1,0 +1,137 @@
+C51 COMPILER V8.05a   MAIN                                                                 03/16/2021 18:29:27 PAGE 1   
+
+
+C51 COMPILER V8.05a, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          /*
+   2          In final circuit the port 2 is to be used as data port for LCD.
+   3          Rs Rw and EN on port 1 0,1,2
+   4          Buzzer to be connected at port 3 pin 2
+   5          motor to be connected at port 3 pin 3
+   6          */
+   7          
+   8          #include "externs.h"
+   9          
+  10          
+  11          void main()
+  12          {                       
+  13   1      //      buzzer = 0;
+  14   1              // gsm_flag=0;  
+  15   1              Ext_int_Init();         /* Call Ext. interrupt initialize */
+  16   1              UART_Init();
+  17   1              timer_init();
+  18   1              lcd_init();
+  19   1                IR=0;
+  20   1              while(1)
+  21   1              {       
+  22   2                      
+  23   2                      // To check if the patient is taking the medicine of slot 1
+  24   2                      if((IR == 1) && (hour == slot1) && !((flag & 0x80) == 0X80))
+  25   2                      {
+  26   3                              flag |= 0x80;
+  27   3                              // lcd_write_string("Medicine Taken");
+  28   3                      }
+  29   2      
+  30   2                      // To check if the patient is taking the medicine of slot 2
+  31   2                      else if((IR == 1) && (hour == slot2) && !((flag & 0x40) == 0X40))
+  32   2                      {
+  33   3                              flag |= 0x40;
+  34   3                              // lcd_write_string("Medicine Taken");
+  35   3                      }
+  36   2      
+  37   2                      // To check if the patient is taking the medicine of slot 3
+  38   2                      else if((IR == 1) && (hour == slot2) && !((flag & 0x20) == 0X20))
+  39   2                      {
+  40   3                              flag |= 0x20;
+  41   3                              // lcd_write_string("Medicine Taken");
+  42   3                      }
+  43   2      
+  44   2                      // Check if slot 1 or slot 2 time has occured
+  45   2                      if(((hour == slot1)&& !((flag & 0x80) == 0x80)) && min <1 && (sec<59) )
+  46   2                      {
+  47   3                              gsm_flag = 0;
+  48   3                              buzz();
+  49   3                      }
+  50   2      
+  51   2                      else if(((hour == slot2)&& !((flag & 0x40) == 0X40)) && min <1 && (sec<59))
+  52   2                              {
+  53   3                                      gsm_flag = 0;
+  54   3                                      buzz();
+  55   3                              }
+C51 COMPILER V8.05a   MAIN                                                                 03/16/2021 18:29:27 PAGE 2   
+
+  56   2                      
+  57   2                      else if((hour == slot3)&& !((flag & 0x20) == 0X20) && min <1 && (sec<59))
+  58   2                              {
+  59   3                                      gsm_flag = 0;
+  60   3                                      buzz();
+  61   3                              }
+  62   2      
+  63   2      
+  64   2                      //to check if medicine has been taken or not if not taken then give missed call 
+  65   2                      //and buzz the buzzer again to remind the patient for slot 1
+  66   2                      if(!((flag & 0x80) == 0x80) && (hour==slot1) && (hour < slot1+1) && !gsm_flag && min == 2)
+  67   2                      {
+  68   3                              GSM_missed_call();
+  69   3                      }
+  70   2      
+  71   2      
+  72   2                      //to check if medicine has been taken or not if not taken then give missed call 
+  73   2                      //and buzz the buzzer again to remind the patient for slot 2
+  74   2                      else if(!((flag & 0x40) == 0x40) && (hour==slot2) && (hour <slot2+1) && !gsm_flag && min == 2)
+  75   2                      {
+  76   3      //                      buzz();
+  77   3                              GSM_missed_call();
+  78   3                              // if want to send message using GSM and give missed calls
+  79   3                      }
+  80   2      
+  81   2                      else if(!((flag & 0x20) == 0x20) && (hour==slot3) && (hour <slot3+1)  && !gsm_flag && min == 2)
+  82   2                      {
+  83   3      //                      buzz();
+  84   3                              GSM_missed_call();      
+  85   3                              // if want to send message using GSM and give missed calls
+  86   3                      }
+  87   2      
+  88   2      
+  89   2      
+  90   2      
+  91   2                      if(tim_flag==1)
+  92   2                      {
+  93   3                      
+  94   3                      lcd_cmd(0x80);  
+  95   3                      
+  96   3                      lcd_data(hour / 0x0a + 0x30);
+  97   3                      lcd_data(hour % 0x0a + 0x30);
+  98   3                      lcd_data(':');
+  99   3      
+ 100   3                      lcd_data(min / 0x0a + 0x30);
+ 101   3                      lcd_data(min % 0x0a + 0x30);
+ 102   3                      lcd_data(':');
+ 103   3      
+ 104   3                      lcd_data(sec / 0x0a + 0x30);
+ 105   3                      lcd_data(sec % 0x0a + 0x30);    
+ 106   3                      tim_flag=0;
+ 107   3                      }
+ 108   2      
+ 109   2              }
+ 110   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    534    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V8.05a   MAIN                                                                 03/16/2021 18:29:27 PAGE 3   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

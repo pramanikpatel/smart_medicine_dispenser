@@ -1,0 +1,314 @@
+C51 COMPILER V8.05a   SOURCE                                                               03/16/2021 18:29:27 PAGE 1   
+
+
+C51 COMPILER V8.05a, COMPILATION OF MODULE SOURCE
+OBJECT MODULE PLACED IN source.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE source.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include "externs.h"
+   2          
+   3          char gsm_flag = 0;
+   4          unsigned char flag = 0; // flags to check if medicines are taken or not for slot 1 and slot 2
+   5          unsigned char rec_char, slot1 = 45, slot2 =76, slot3=99;
+   6          unsigned char data_frame[10]; 
+   7          // dataframe : 1,2: first slot time 
+   8          // dataframe : 3,4: second slot time
+   9          // dataframe : 5,6: second slot time
+  10          // dataframe : 7->10 : present time
+  11          unsigned int m_sec=0;
+  12          unsigned int sec=0;
+  13          unsigned int hour=0;
+  14          unsigned int min=0;
+  15          unsigned int tim_flag=0;
+  16          unsigned int index=0;
+  17          
+  18          
+  19          
+  20          unsigned char swap(unsigned char dat)
+  21          {
+  22   1              
+  23   1              unsigned char a,b,c,d;
+  24   1              a=b=c=dat;
+  25   1               a=    (a & 0x80)>> 7 | (a & 0x01)<< 7 ;
+  26   1               b=    (b & 0x40)>> 5 | (b & 0x02)<< 5  ;
+  27   1              c=     (c & 0x20)>> 3 | (c & 0x04)<< 3 ;
+  28   1              d=         (dat & 0x10)>> 1 | (dat & 0x08)<< 1   |a |b |c  ;
+  29   1      
+  30   1              return d;
+  31   1      }
+  32          
+  33          
+  34          void delay(unsigned int msec)            //Function for delay
+  35          {
+  36   1              int i,j;
+  37   1              for(i=0;i<msec;i++)
+  38   1                  for(j=0; j<1275; j++);
+  39   1      }
+  40          
+  41          void lcd_cmd(unsigned char item)                // Function to send command on LCD
+  42          {
+  43   1              dataport = item;
+  44   1              rs= 0;
+  45   1              rw=0;
+  46   1              en=1;
+  47   1              delay(1);
+  48   1              en=0;
+  49   1              return;
+  50   1      } 
+  51          
+  52          
+  53          
+  54          void LCD_Init (void)            /* LCD Initialize function */
+  55          {       
+C51 COMPILER V8.05a   SOURCE                                                               03/16/2021 18:29:27 PAGE 2   
+
+  56   1              delay(20);              /* LCD Power ON Initialization time >15ms */
+  57   1              lcd_cmd(0x1c);  /* Initialization of 16X2 LCD in 8bit mode */
+  58   1              lcd_cmd(0xf0);  /* Display ON Cursor blonk */
+  59   1              lcd_cmd(0x60);  /* Auto Increment cursor */
+  60   1              lcd_cmd(0x80);  /* clear display */
+  61   1              lcd_cmd(0x01);  /* cursor at home position */
+  62   1      }
+  63          
+  64          
+  65          void lcd_data(unsigned char item)               // Function to display character on LCD
+  66          {
+  67   1              dataport = swap(item);
+  68   1              rs= 1;
+  69   1              rw=0;
+  70   1              en=1;
+  71   1              delay(1);
+  72   1              en=0;
+  73   1              return;
+  74   1      }
+  75          
+  76          void lcd_clrset()
+  77          {
+  78   1              lcd_cmd(0x80);
+  79   1              lcd_cmd(0x01);
+  80   1      }
+  81          
+  82          
+  83          /* Function to enable interrupt s*/
+  84          void Ext_int_Init()                             
+  85          {
+  86   1              EA  = 1;                /* Enable global interrupt */
+  87   1              ES = 1;                 /* Enable serial interrupt */           
+  88   1              ET0 = 1;
+  89   1      }
+  90          
+  91          void lcd_write_string(unsigned char *str)
+  92          {
+  93   1              int pos = 0;
+  94   1              while(*str != '\0')
+  95   1              {
+  96   2                      if(pos == 16)
+  97   2                              lcd_cmd(0x03);
+  98   2                      lcd_data(*str++);
+  99   2                      pos +=1;
+ 100   2              }
+ 101   1      }
+ 102          
+ 103          
+ 104          void UART_Init()
+ 105          {
+ 106   1              TMOD = 0x21;            /* Timer 1, 8-bit auto reload mode */
+ 107   1              TH1 = 0xFD;             /* Load value for 9600 baud rate */
+ 108   1              SCON = 0x50;            /* Mode 1, reception enable */
+ 109   1              TR1 = 1;                /* Start timer 1 */
+ 110   1      }
+ 111          
+ 112          void Serial_ISR() interrupt 4    
+ 113          {       
+ 114   1              if(TI)
+ 115   1              {
+ 116   2                      TI = 0;
+ 117   2              }
+C51 COMPILER V8.05a   SOURCE                                                               03/16/2021 18:29:27 PAGE 3   
+
+ 118   1      
+ 119   1              if(RI)
+ 120   1              {
+ 121   2                      REN=0;
+ 122   2                      rec_char = SBUF;                /* Give received data on port 1 */
+ 123   2                      data_frame[index++]=rec_char-0x30;
+ 124   2                      if(index==1 || index ==2)
+ 125   2                      {   
+ 126   3                              if(index == 1)
+ 127   3                              {   //buzzer=0;
+ 128   4                                      lcd_clrset();
+ 129   4                                      lcd_write_string("enter slot 1: ");
+ 130   4                                      lcd_cmd(0x03);
+ 131   4                                      lcd_data(rec_char);
+ 132   4                              }
+ 133   3                              
+ 134   3                              if(index == 2)
+ 135   3                              {
+ 136   4                                      lcd_data(rec_char);
+ 137   4                              }
+ 138   3                      }
+ 139   2      
+ 140   2      
+ 141   2                      else if(index==3 || index ==4)
+ 142   2                      {   
+ 143   3                              if(index == 3)
+ 144   3                              {
+ 145   4                                      lcd_clrset();
+ 146   4                                      lcd_write_string("enter slot 2: ");
+ 147   4                                      lcd_cmd(0x03);
+ 148   4                                      lcd_data(rec_char);
+ 149   4                              }
+ 150   3                                              
+ 151   3                              if(index == 4)
+ 152   3                              {
+ 153   4                                      lcd_data(rec_char);
+ 154   4                              }
+ 155   3                      }                       
+ 156   2      
+ 157   2                      else if(index==5 || index ==6)
+ 158   2                      {   
+ 159   3                              if(index == 5)
+ 160   3                              {
+ 161   4                                      lcd_clrset();
+ 162   4                                      lcd_write_string("enter slot 3: ");
+ 163   4                                      lcd_cmd(0x03);
+ 164   4                                      lcd_data(rec_char);
+ 165   4                              }
+ 166   3                                              
+ 167   3                              if(index == 6)
+ 168   3                              {
+ 169   4                                      lcd_data(rec_char);
+ 170   4                              }
+ 171   3                      }                       
+ 172   2      
+ 173   2                      else
+ 174   2                      {   
+ 175   3                              if(index == 7)
+ 176   3                              {
+ 177   4                                      lcd_clrset();
+ 178   4                                      lcd_write_string("enter HH MM ");
+ 179   4                                      lcd_cmd(0x03);
+C51 COMPILER V8.05a   SOURCE                                                               03/16/2021 18:29:27 PAGE 4   
+
+ 180   4                                      lcd_data(rec_char);
+ 181   4                              }
+ 182   3                              
+ 183   3                              else if(index == 8)
+ 184   3                                      {
+ 185   4                                              lcd_data(rec_char);
+ 186   4                                              lcd_data(':');
+ 187   4                                      }
+ 188   3                              else
+ 189   3                              {
+ 190   4                                      lcd_data(rec_char);
+ 191   4                              }
+ 192   3                      }
+ 193   2      
+ 194   2                      if(rec_char=='z')
+ 195   2                              {
+ 196   3                                      lcd_data(rec_char);
+ 197   3                                      // GSM_missed_call("9624279368");
+ 198   3                                      slot1 = data_frame[0]*10 + data_frame[1];
+ 199   3                                      slot2 = data_frame[2]*10 + data_frame[3];
+ 200   3                                      slot3 = data_frame[4]*10 + data_frame[5];
+ 201   3                                      hour  = data_frame[6]*10 + data_frame[7];
+ 202   3                                      min  =  data_frame[8]*10 + data_frame[9];
+ 203   3                                      TR0=1;  
+ 204   3                                      ES = 0;
+ 205   3                              }
+ 206   2                      REN=1;
+ 207   2                      RI=0;
+ 208   2                                              /* Clear RI flag */
+ 209   2              }
+ 210   1      } 
+ 211          
+ 212          void timer_init()
+ 213          {
+ 214   1              TH0 = 0xF8;
+ 215   1              TL0 = 0xcc;
+ 216   1              TR0=0;
+ 217   1      }
+ 218          
+ 219          void TIMER_ISR() interrupt 2
+ 220          {       
+ 221   1              TH0 = 0xF8;
+ 222   1              TL0 = 0xcc;
+ 223   1              TF0=0;
+ 224   1              m_sec++;
+ 225   1              if(m_sec == 498 )               //msec=498
+ 226   1              {       m_sec=0;
+ 227   2                      sec++;
+ 228   2                      tim_flag=1;
+ 229   2              }
+ 230   1      
+ 231   1              // generation of clock for checking the medicine slot timings
+ 232   1              if(sec>=60)
+ 233   1              {
+ 234   2                      sec = 0;
+ 235   2                      min++;
+ 236   2                      if(min >= 60)
+ 237   2                      {
+ 238   3                              min = 0;
+ 239   3                              hour++;
+ 240   3                              if(hour >= 24)
+ 241   3                              {
+C51 COMPILER V8.05a   SOURCE                                                               03/16/2021 18:29:27 PAGE 5   
+
+ 242   4                                      hour = 0;
+ 243   4                                      flag = 0;
+ 244   4                              }
+ 245   3                      }
+ 246   2              }
+ 247   1      }
+ 248          
+ 249          /* Function to buzz the buzzer */
+ 250          void buzz()
+ 251          {       
+ 252   1              buzzer = 1;
+ 253   1              delay(600);
+ 254   1              buzzer=0;
+ 255   1              delay(300);
+ 256   1      }
+ 257          
+ 258          /* Function to transmit a string using UART */
+ 259          void Transmit_char(char tx_data)
+ 260          {
+ 261   1              SBUF = tx_data;         /* Load char in SBUF register */
+ 262   1              while (TI==0);          /* Wait until stop bit transmit */
+ 263   1              TI = 0;                 /* Clear TI flag */
+ 264   1      }
+ 265          
+ 266          void Transmit_String(char *str)
+ 267          {
+ 268   1              unsigned char i;
+ 269   1              for(i=0;str[i]!='z';i++)        /* Send each char of string till the NULL */
+ 270   1              {
+ 271   2                      Transmit_char(str[i]);  /* Call transmit data function */
+ 272   2              }
+ 273   1      }       
+ 274          
+ 275          /* Function to give a missed call */
+ 276          void GSM_missed_call()
+ 277          {
+ 278   1              Transmit_String("ATD9624279368;\rz");
+ 279   1              delay(2000);
+ 280   1              Transmit_String("ATH\rz");
+ 281   1              
+ 282   1              gsm_flag=1;
+ 283   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    866    ----
+   CONSTANT SIZE    =     81    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     28       8
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
