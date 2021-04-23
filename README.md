@@ -1,1 +1,1 @@
-# smart_medicine_dispenser
+# Smart Medicine Dispenser
